@@ -43,6 +43,8 @@ This contract is designed for efficient and secure management of freelance proje
 - **Parameters:** `_contractor` - Contractor's address.
 - **Return Type:** `uint256[] memory`
 
+---
+
 ### Write Methods:
 
 #### `createOrder(address _paymentToken, string memory _title, string memory _descriptionLink)`
@@ -160,6 +162,8 @@ This contract is designed for efficient and secure management of freelance proje
 - **Modifier:** `onlyRole(DEFAULT_ADMIN_ROLE)`
 - **Emits Event:** `UpdateFeePercent`
 
+---
+
 ### Public Variables:
 
 #### JUDGE_ROLE
@@ -191,6 +195,8 @@ This contract is designed for efficient and secure management of freelance proje
 
 - **Type:** `bytes32`
 - **Description:** Role hash for the admin role.
+
+---
 
 ### Events:
 
@@ -291,6 +297,8 @@ Emitted when native chain tokens or ERC20 tokens are withdrawn from the contract
   - `token` - Token address.
   - `to` - Receiver's address.
   - `amount` - Amount of tokens.
+
+---
 
 ## Technical Stack
 
