@@ -27,18 +27,18 @@ This contract is designed for efficient and secure management of freelance proje
 ### Read Methods:
 
 1. **getPaymentTokens()**
-   Description: Retrieves the list of payment tokens supported by the platform.
-   Return Type: address[] memory
+   Description: Retrieves the list of payment tokens supported by the platform.\
+   Return Type: address[] memory\
 
 2. **getCustomerActiveOrders(address \_customer)**
-   Description: Returns the array of active order IDs for a given customer.
-   Parameters: \_customer - Customer's address.
-   Return Type: uint256[] memory
+   Description: Returns the array of active order IDs for a given customer.\
+   Parameters: \_customer - Customer's address.\
+   Return Type: uint256[] memory\
 
 3. **getContractorActiveOrders(address \_contractor)**
-   Description: Returns the array of active order IDs for a given contractor.
-   Parameters: \_contractor - Contractor's address.
-   Return Type: uint256[] memory
+   Description: Returns the array of active order IDs for a given contractor.\
+   Parameters: \_contractor - Contractor's address.\
+   Return Type: uint256[] memory.\
 
 ## Technical Stack
 
