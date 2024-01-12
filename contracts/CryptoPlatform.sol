@@ -18,7 +18,7 @@ error MsgValueIsNotZero();
 /// @notice reverted when order does not exist
 error OrderDoesNotExist(uint256 orderId);
 /// @notice reverted when deadline is incorrect
-error IncorrectDeadline(uint256 deadline);
+error IncorrectDeadline(string deadline);
 /// @notice reverted when percents is incorrect
 error IncorrectPercent(string argName);
 /// @notice reverted when price is incorrect
@@ -100,6 +100,7 @@ contract CryptoPlatform is AccessControl, Pausable {
         uint256 contractorAmount,
         uint256 customerAmount
     );
+    event ContractorUpdatedByJudge(uint256 orderId, address contractor);
     /// @notice emitted when project fee paid
     event ProjectFeePaid(
         uint256 orderId,
@@ -157,7 +158,7 @@ contract CryptoPlatform is AccessControl, Pausable {
         if (!EnumerableSet.contains(paymentTokens, _paymentToken)) {
             revert UnSupportedPaymentToken(_paymentToken);
         }
-
+        ++ordersCount;
         uint256 orderId = ordersCount;
         Order storage order = orders[orderId];
         order.id = orderId;
@@ -167,7 +168,6 @@ contract CryptoPlatform is AccessControl, Pausable {
         order.descriptionLink = _descriptionLink;
         order.status = OrderStatus.CREATED;
         EnumerableSet.add(customerActiveOrders[msg.sender], orderId);
-        ++ordersCount;
 
         emit OrderCreated(
             orderId,
@@ -208,7 +208,7 @@ contract CryptoPlatform is AccessControl, Pausable {
             revert ZeroValue("_price");
         }
         if (_deadline <= block.timestamp) {
-            revert IncorrectDeadline(_deadline);
+            revert IncorrectDeadline("_deadline");
         }
 
         order.contractor = _contractor;
@@ -244,8 +244,9 @@ contract CryptoPlatform is AccessControl, Pausable {
         }
 
         order.status = OrderStatus.COMPLETED;
-        EnumerableSet.remove(contractorActiveOrders[msg.sender], _orderId);
+
         EnumerableSet.remove(customerActiveOrders[customerAddress], _orderId);
+        EnumerableSet.remove(contractorActiveOrders[orderContractor], _orderId);
         _approveOrderPayment(
             _orderId,
             paymentTokenCache,
@@ -294,7 +295,7 @@ contract CryptoPlatform is AccessControl, Pausable {
         uint256 orderPrice = order.price;
 
         if (_contractorPercent + _customerPercent != FEE_PRECISION) {
-            revert IncorrectPercent("_contractorPercent || _customerPercent");
+            revert IncorrectPercent("_contractorPercent + _customerPercent");
         }
         if (order.status != OrderStatus.IN_PROGRESS) {
             revert OrderNotInProgress(_orderId);
@@ -313,6 +314,22 @@ contract CryptoPlatform is AccessControl, Pausable {
             _customerPercent,
             _contractorPercent
         );
+    }
+
+    function updateOrderContractor(
+        uint256 _orderId,
+        address _contractor
+    ) external whenNotPaused onlyRole(JUDGE_ROLE) {
+        _checkOrderExist(_orderId);
+        Order storage order = orders[_orderId];
+        if (order.status != OrderStatus.IN_PROGRESS) {
+            revert OrderNotInProgress(_orderId);
+        }
+        if (_contractor == address(0)) {
+            revert ZeroAddress("_contractor");
+        }
+        order.contractor = _contractor;
+        emit ContractorUpdatedByJudge(_orderId, _contractor);
     }
 
     /// @notice Add new payment token to list.
@@ -486,15 +503,22 @@ contract CryptoPlatform is AccessControl, Pausable {
         address _feeReceiver,
         uint256 _price
     ) internal {
-        uint256 fee = (_price * feePercent) / FEE_PRECISION;
+        uint16 feePercentCache = feePercent;
+        uint256 fee = feePercentCache > 0
+            ? (_price * feePercentCache) / FEE_PRECISION
+            : 0;
         if (_paymentToken == address(0)) {
             _sendNative(_contractor, _price - fee);
-            _sendNative(feeReceiver, fee);
-            emit ProjectFeePaid(ordersCount, address(0), fee);
+            if (fee > 0) {
+                _sendNative(feeReceiver, fee);
+                emit ProjectFeePaid(ordersCount, address(0), fee);
+            }
         } else {
             IERC20(_paymentToken).safeTransfer(_contractor, _price - fee);
-            IERC20(_paymentToken).safeTransfer(_feeReceiver, fee);
-            emit ProjectFeePaid(_orderId, _paymentToken, fee);
+            if (fee > 0) {
+                IERC20(_paymentToken).safeTransfer(_feeReceiver, fee);
+                emit ProjectFeePaid(_orderId, _paymentToken, fee);
+            }
         }
     }
 
@@ -517,7 +541,10 @@ contract CryptoPlatform is AccessControl, Pausable {
         uint16 _contractorPercent
     ) internal {
         address feeReceiverCache = feeReceiver;
-        uint256 fee = uint256((_orderPrice * feePercent) / FEE_PRECISION);
+        uint16 feePercentCache = feePercent;
+        uint256 fee = feePercentCache > 0
+            ? uint256((_orderPrice * feePercentCache) / FEE_PRECISION)
+            : 0;
         uint256 amount = _orderPrice - fee;
         uint256 _contractorAmount = _contractorPercent > 0
             ? uint256((amount * _contractorPercent) / FEE_PRECISION)
@@ -526,15 +553,16 @@ contract CryptoPlatform is AccessControl, Pausable {
             ? uint256((amount * _customerPercent) / FEE_PRECISION)
             : 0;
         if (_paymentToken == address(0)) {
-            _sendNative(feeReceiverCache, fee);
             if (_contractorAmount > 0) {
                 _sendNative(_contractor, _contractorAmount);
             }
             if (_customerAmount > 0) {
                 _sendNative(_customer, _customerAmount);
             }
-
-            emit ProjectFeePaid(_orderId, address(0), fee);
+            if (fee > 0) {
+                _sendNative(feeReceiverCache, fee);
+                emit ProjectFeePaid(_orderId, address(0), fee);
+            }
         } else {
             if (_contractorAmount > 0) {
                 IERC20(_paymentToken).safeTransfer(
@@ -545,8 +573,10 @@ contract CryptoPlatform is AccessControl, Pausable {
             if (_customerAmount > 0) {
                 IERC20(_paymentToken).safeTransfer(_customer, _customerAmount);
             }
-            IERC20(_paymentToken).safeTransfer(feeReceiverCache, fee);
-            emit ProjectFeePaid(_orderId, _paymentToken, fee);
+            if (fee > 0) {
+                IERC20(_paymentToken).safeTransfer(feeReceiverCache, fee);
+                emit ProjectFeePaid(_orderId, _paymentToken, fee);
+            }
         }
         emit OrderJudged(_orderId, _contractorAmount, _customerAmount);
     }
@@ -577,7 +607,7 @@ contract CryptoPlatform is AccessControl, Pausable {
     /// @notice This function checks order exist.
     /// @param _orderId - order id
     function _checkOrderExist(uint256 _orderId) private view {
-        if (_orderId >= ordersCount) {
+        if (_orderId > ordersCount) {
             revert OrderDoesNotExist(_orderId);
         }
     }

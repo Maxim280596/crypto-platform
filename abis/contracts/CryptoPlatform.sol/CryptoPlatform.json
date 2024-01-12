@@ -8,7 +8,7 @@
   "error EnforcedPause()",
   "error ExpectedPause()",
   "error FailedInnerCall()",
-  "error IncorrectDeadline(uint256)",
+  "error IncorrectDeadline(string)",
   "error IncorrectPercent(string)",
   "error IncorrectPrice(string)",
   "error MsgValueIsNotZero()",
@@ -21,6 +21,7 @@
   "error UnSupportedPaymentToken(address)",
   "error ZeroAddress(string)",
   "error ZeroValue(string)",
+  "event ContractorUpdatedByJudge(uint256,address)",
   "event EmergencyWithdraw(address indexed,address indexed,uint256)",
   "event OrderCanceledByCustomer(uint256)",
   "event OrderCompleted(uint256)",
@@ -65,5 +66,6 @@
   "function supportsInterface(bytes4) view returns (bool)",
   "function unpausePlatform()",
   "function updateFeePercent(uint16)",
-  "function updateFeeReceiver(address)"
+  "function updateFeeReceiver(address)",
+  "function updateOrderContractor(uint256,address)"
 ]
